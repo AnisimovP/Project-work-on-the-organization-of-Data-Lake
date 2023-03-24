@@ -10,7 +10,6 @@ import os
 os.environ['HADOOP_CONF_DIR'] = '/etc/hadoop/conf'
 os.environ['YARN_CONF_DIR'] = '/etc/hadoop/conf'
 
-
 import findspark
 
 findspark.init()
@@ -19,16 +18,19 @@ findspark.find()
 import pyspark
 from pyspark import SparkContext, SparkConf
 from pyspark.sql import SQLContext
+from pyspark.sql.functions import radians
 import pyspark.sql.functions as F
 from pyspark.sql.window import Window
+
 
 ## Получим датафрейм городов Австралии с их координатами (координаты указаны в грудасх, переведем их в радианы)
 
 def get_city_loc(url, spark):
     geo_city = spark.read.csv(url, sep=";", header=True)
-    geo_city = geo_city.withColumn('lat1', F.col('lat') / F.lit(57.3)).withColumn('lng1',
-                                                                                  F.col('lng') / F.lit(57.3)).drop(
-        'lat', 'lng')
+    geo_city = geo_city.withColumn('lat1', F.col('lat') / radians(F.lit(1.0))).withColumn('lng1',
+                                                                                          F.col('lng') / radians(
+                                                                                              F.lit(1.0))).drop('lat',
+                                                                                                                'lng')
     return geo_city
 
 
@@ -60,7 +62,7 @@ def get_events_city(events_geo, geo_city):
                                                                                                           )
                                                                                                    )
                                                        ) \
-        .withColumn('rank', F.rank().over(window)) \
+        .withColumn('rank', F.row_number().over(window)) \
         .where(F.col('rank') == 1) \
         .cache()
     return events_city
@@ -105,30 +107,32 @@ def get_visits(message_city):
 
 def get_home_adress(city_change):
     window = Window().partitionBy('user_id').orderBy(F.desc('num_visit_full'))
-    home_adress = city_change.groupBy('user_id', 'city', 'num_visit_full').count().where(F.col('count') > 10).select(
+    home_adress = city_change.groupBy('user_id', 'city', 'num_visit_full').count().where(F.col('count') > 27).select(
         'user_id',
         F.first('city').over(window).alias('home_city')
-    )
+    ).distinct()
+
     return home_adress
 
 
 ## Получим количество посещенных городов.
 
 def get_city_count(city_change):
-    city_count = city_change.groupBy('user_id').agg(F.approx_count_distinct('num_visit_full').alias('travel_count'))
+    city_count = city_change.groupBy('user_id').agg(F.countDistinct('num_visit_full').alias('travel_count'))
     return city_count
 
 
 ## Получим список городов в порядке посещения
 
 def get_city_array(city_change):
-    city_array = city_change.select('user_id',
-                                    'city',
-                                    'num_visit_full') \
+    window_spec = Window.partitionBy('user_id').orderBy('num_visit_full')
+    city_array = city_change.select('user_id', 'city', 'num_visit_full') \
         .distinct() \
-        .orderBy('user_id', 'num_visit_full') \
         .groupBy('user_id') \
-        .agg(F.collect_list('city')).alias('travel_array')
+        .agg(F.collect_list('city').alias('travel_array')) \
+        .withColumn('row_num', F.row_number().over(window_spec)) \
+        .filter(F.col('row_num') == F.max('row_num').over(window_spec)) \
+        .select('user_id', 'travel_array')
     return city_array
 
 

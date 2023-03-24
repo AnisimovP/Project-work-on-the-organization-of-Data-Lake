@@ -1,9 +1,3 @@
-#!/usr/bin/env python
-# coding: utf-8
-
-# In[ ]:
-
-
 import os
 import datetime as dt
 
@@ -18,7 +12,6 @@ os.environ['JAVA_HOME'] = '/usr'
 os.environ['SPARK_HOME'] = '/usr/lib/spark'
 os.environ['PYTHONPATH'] = '/usr/local/lib/python3.8'
 
-
 default_args = {
     'owner': 'Анисимов Павел',
 }
@@ -31,39 +24,37 @@ with DAG(
         catchup=False,
         max_active_runs=1,
 ) as dag:
-
     mart_1 = SparkSubmitOperator(
-                task_id='mart_1',
-                application='/lessons/mart_1.py',
-                conn_id='yarn_spark',
-                application_args=[
-                    '/user/anisimovp/data/geo/geo_2.csv',
-                    '/user/master/data/geo/events',
-                    '/user/anisimovp/data/analytics',
-                ]
-            )
-    
+        task_id='mart_1',
+        application='/lessons/mart_1.py',
+        conn_id='yarn_spark',
+        application_args=[
+            '/user/anisimovp/data/geo/geo_2.csv',
+            '/user/master/data/geo/events',
+            '/user/anisimovp/data/analytics',
+        ]
+    )
+
     mart_2 = SparkSubmitOperator(
-                task_id='mart_2',
-                application='/lessons/mart_2.py',
-                conn_id='yarn_spark',
-                application_args=[
-                    '/user/anisimovp/data/geo/geo_2.csv',
-                    '/user/master/data/geo/events',
-                    '/user/anisimovp/data/analytics',
-                ]
-            )
-    
-     mart_3 = SparkSubmitOperator(
-                task_id='mart_3',
-                application='/lessons/mart_3.py',
-                conn_id='yarn_spark',
-                application_args=[
-                    '/user/anisimovp/data/geo/geo_2.csv',
-                    '/user/master/data/geo/events',
-                    '/user/anisimovp/data/analytics',
-                ]
-            )
-        
-        
+        task_id='mart_2',
+        application='/lessons/mart_2.py',
+        conn_id='yarn_spark',
+        application_args=[
+            '/user/anisimovp/data/geo/geo_2.csv',
+            '/user/master/data/geo/events',
+            '/user/anisimovp/data/analytics',
+        ]
+    )
+
+    mart_3 = SparkSubmitOperator(
+        task_id='mart_3',
+        application='/lessons/mart_3.py',
+        conn_id='yarn_spark',
+        application_args=[
+            '/user/anisimovp/data/geo/geo_2.csv',
+            '/user/master/data/geo/events',
+            '/user/anisimovp/data/analytics',
+        ]
+    )
+
     mart_1 >> mart_2 >> mart_3
