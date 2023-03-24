@@ -27,8 +27,8 @@ from pyspark.sql.window import Window
 
 def get_city_loc(url, spark):
     geo_city = spark.read.csv(url, sep=";", header=True)
-    geo_city = geo_city.withColumn('lat1', F.col('lat') / F.lit(57.3)).withColumn('lng1',
-                                                                                  F.col('lng') / F.lit(57.3)).drop(
+    geo_city = geo_city.withColumn('lat1', radians(F.col('lat'))).withColumn('lng1',
+                                                                             radians(F.col('lng'))).drop(
         'lat', 'lng')
     return geo_city
 
@@ -39,8 +39,8 @@ def get_events_geo(events_url, spark):
     raw_path_geo_events = events_url
 
     events_geo = spark.read.parquet(raw_path_geo_events).sample(0.1).withColumn('lat2',
-                                                                                F.col('lat') / F.lit(57.3)).withColumn(
-        'lng2', F.col('lon') / F.lit(57.3)).withColumn('user_id',
+                                                                                radians(F.col('lat'))).withColumn(
+        'lng2', radians(F.col('lon'))).withColumn('user_id',
                                                        F.when(F.col('event_type') == 'reaction',
                                                               F.col('event.reaction_from')) \
                                                        .when(F.col('event_type') == 'subscription',
@@ -57,6 +57,7 @@ def get_events_geo(events_url, spark):
         .drop('lat', 'lon') \
         .cache()
     return events_geo
+
 
 
 ## Объединим два датафрейма в один

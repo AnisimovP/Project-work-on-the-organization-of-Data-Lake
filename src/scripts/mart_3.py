@@ -26,8 +26,8 @@ from pyspark.sql.window import Window
 
 def get_city_loc(url, spark):
     geo_city = spark.read.csv(url, sep=";", header=True)
-    geo_city = geo_city.withColumn('lat1', F.col('lat') / F.lit(57.3)).withColumn('lng1',
-                                                                                  F.col('lng') / F.lit(57.3)).drop(
+    geo_city = geo_city.withColumn('lat1', radians(F.col('lat'))).withColumn('lng1',
+                                                                             radians(F.col('lng'))).drop(
         'lat', 'lng')
     return geo_city
 
@@ -41,8 +41,8 @@ def get_events_geo(events_url, spark):
                     F.col('event_type') == 'subscription')
     ) \
         .sample(0.01) \
-        .withColumn('lat2', F.col('lat') / F.lit(57.3)) \
-        .withColumn('lon2', F.col('lon') / F.lit(57.3)) \
+        .withColumn('lat2', F.radians(F.col('lat'))) \
+        .withColumn('lon2', F.radians(F.col('lon'))) \
         .withColumn('user_id',
                     F.when(F.col('event_type') == 'subscription',
                            F.col('event.user')) \
@@ -56,6 +56,7 @@ def get_events_geo(events_url, spark):
         .drop('lat', 'lon', 'date') \
         .cache()
     return events_geo
+
 
 
 ## Объединим два датафрейма в один
@@ -114,18 +115,18 @@ def get_non_message(users_pair, events_city):
 ## Определим пользователей, расстояние между которыми не превышает 1 км
 
 def get_coordinates_users(events_city):
-    window = Window().partitionBy('user_id').orderBy(F.desc('ts'))
 
+    window = Window().partitionBy('user_id').orderBy(F.desc('ts'))
     user_coordinates = events_city \
         .withColumn('row_num', F.row_number().over(window)) \
         .filter(F.col('row_num') == 1) \
         .select(
-        'user_id',
-        'lat2',
-        'lon2',
-        'id',
-        'ts'
-    )
+            'user_id',
+            F.col('lat2').alias('act_lat'),
+            F.col('lon2').alias('act_lng'),
+            F.col('id').alias('zone_id'),
+            F.col('ts').alias('act_ts')
+        )
 
     return user_coordinates
 

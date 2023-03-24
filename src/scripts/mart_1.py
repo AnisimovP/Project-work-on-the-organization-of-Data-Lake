@@ -27,10 +27,9 @@ from pyspark.sql.window import Window
 
 def get_city_loc(url, spark):
     geo_city = spark.read.csv(url, sep=";", header=True)
-    geo_city = geo_city.withColumn('lat1', F.col('lat') / radians(F.lit(1.0))).withColumn('lng1',
-                                                                                          F.col('lng') / radians(
-                                                                                              F.lit(1.0))).drop('lat',
-                                                                                                                'lng')
+    geo_city = geo_city.withColumn('lat1', radians(F.col('lat'))).withColumn('lng1',
+                                                                             radians(F.col('lng'))).drop(
+        'lat', 'lng')
     return geo_city
 
 
@@ -38,16 +37,14 @@ def get_city_loc(url, spark):
 
 def get_events_geo(events_url, spark):
     raw_path_geo_events = events_url
-
     events_geo = spark.read.parquet(raw_path_geo_events).sample(0.10).where(
-        F.col('event_type') == 'message').withColumn('lat2', F.col('lat') / F.lit(57.3)).withColumn('lon2', F.col(
-        'lon') / F.lit(57.3)).withColumn('user_id', F.col('event.message_from')).withColumn('ts', F.when(
+        F.col('event_type') == 'message').withColumn('lat2', radians(F.col('lat'))).withColumn('lon2', radians(
+        F.col('lon'))).withColumn('user_id', F.col('event.message_from')).withColumn('ts', F.when(
         F.col('event.message_channel_to').isNotNull(),
         F.col('event.datetime')) \
-                                                                                            .otherwise(
+                                                                                     .otherwise(
         F.col('event.message_ts'))) \
         .drop('lat', 'lon')
-
     return events_geo
 
 
